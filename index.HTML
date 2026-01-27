@@ -1,0 +1,2843 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="谁是卧底在线游戏 - 莉雯版，支持多种游戏模式、语音提示和智能裁判">
+    <meta name="keywords" content="谁是卧底,狼人杀,推理游戏,聚会游戏,在线游戏">
+    <title>谁是卧底 - 莉雯版</title>
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAIGNIUk0AAHolAACAgwAA+f8AAIDpAAB1MAAA6mAAADqYAAAXb5JfxUYAAAGgSURBVHic7JfPSxVRFMU/b0pUolBzYxC4KQhyJQriwk0b/4FWuRAaFy2C/g1B0EZw1yJwF0hE4LJFQZsQBKFFIPoj6BmWz6KZ+e6P3sx7M9M02gP34Mycc9+dc+fe+wgAOOdywCFgQlInQlKWek0qAHcB5zXFO+ecN0v8rFgEDgAjwEe0nL+dc91Y0jn3wDn3HLjk7Y8b5+d1ACwAzwBc3wZ0AK8FTonILrAAnIoAgM0xX6CAAD2wJ3lIA3zTqIhEDgJw8LfJRSJXC2DS//sQkeuJXADgGpBDBm9G5B7/Mw6AvYAVYKZJ7gnQY6zpXj2n8AjYD5yoI9cB9sT66T7wBhisgLQjQN2fwKfAH+M8Sh2vgt8Aw0A/8AFYqZgD1v1kvj4S+A7sAPsiB3AdeFlmrgCJXATggbb5N8BZi09A4t4P9No+RK6XB0Z4DjwBRoGxGG+BPK6VAF4BByPygYhMp1Iiwzrn8sCgmMcAf53zk6oQIm/yhA8gB8wA04nQlDAVgCPAGgAwSxrQLGUAv/gT4AsJ9k6TyP0/AK3+3iTyhwngn6yqZwXWda8DPDY+fwF6CdVnAf4LcwAAAABJRU5ErkJggg==">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        /* 基础变量和样式保持不变，添加新样式 */
+        :root { 
+            --primary: #6c5ce7; 
+            --danger: #ff7675; 
+            --success: #55efc4; 
+            --warning: #fdcb6e;
+            --info: #74b9ff;
+            --bg: #0f0c29; 
+            --text: #fff;
+        }
+        
+        body { 
+            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            color: var(--text); 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            margin: 0; 
+            padding: 20px;
+            min-height: 100vh;
+            transition: all 0.3s ease;
+        }
+        
+        /* 游戏容器布局 */
+        .game-container { 
+            display: grid; 
+            grid-template-columns: 320px 1fr; 
+            gap: 20px; 
+            max-width: 1200px; 
+            margin: 0 auto;
+            transition: all 0.3s ease;
+        }
+        
+        /* 面板样式 */
+        .panel { 
+            background: rgba(255,255,255,0.08); 
+            padding: 20px; 
+            border-radius: 20px; 
+            border: 1px solid rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
+        }
+        
+        /* 卡片网格 */
+        .card-grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); 
+            gap: 20px; 
+        }
+        
+        /* 卡片样式 */
+        .card { 
+            height: 200px; 
+            perspective: 1000px; 
+            cursor: pointer;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .card:hover:not(.flipped):not(.locked):not(.out) {
+            transform: translateY(-5px) scale(1.02);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+        }
+        
+        .card-inner { 
+            position: relative; 
+            width: 100%; 
+            height: 100%; 
+            transition: transform 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
+            transform-style: preserve-3d; 
+        }
+        
+        .card.flipped .card-inner { 
+            transform: rotateY(180deg); 
+        }
+        
+        /* 状态样式 */
+        .card.locked { 
+            opacity: 0.4; 
+            filter: blur(3px); 
+            pointer-events: none; 
+        }
+        
+        .card.out { 
+            opacity: 0.3; 
+            pointer-events: none; 
+            filter: grayscale(1) brightness(0.7);
+            transform: scale(0.95);
+        }
+        
+        .card.viewed .front::after {
+            content: "✓";
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            color: var(--success);
+            font-size: 20px;
+        }
+        
+        /* 卡片正反面 */
+        .front, .back { 
+            position: absolute; 
+            width: 100%; 
+            height: 100%; 
+            backface-visibility: hidden; 
+            border-radius: 16px; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            border: 3px solid rgba(255,255,255,0.15);
+            transition: all 0.3s;
+        }
+        
+        .front { 
+            background: linear-gradient(145deg, #2d2d44, #1a1a2e); 
+            color: var(--primary); 
+            font-size: 36px;
+            font-weight: bold;
+        }
+        
+        .back { 
+            transform: rotateY(180deg); 
+            color: #000; 
+            font-weight: bold; 
+            text-align: center; 
+            padding: 15px; 
+        }
+        
+        .back.civilian { 
+            background: linear-gradient(145deg, var(--success), #00b894);
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.1);
+        }
+        
+        .back.undercover { 
+            background: linear-gradient(145deg, var(--danger), #d63031);
+            color: #fff;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.2);
+        }
+        
+        .back.blank {
+            background: linear-gradient(145deg, #a29bfe, #6c5ce7);
+            color: #fff;
+        }
+        
+        .back h3 {
+            margin: 10px 0;
+            font-size: 22px;
+            text-shadow: 1px 1px 3px rgba(0,0,0,0.3);
+        }
+        
+        .back small {
+            font-size: 14px;
+            padding: 5px 12px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 20px;
+            margin-bottom: 5px;
+        }
+        
+        /* 按钮样式 */
+        .btn { 
+            width: 100%; 
+            padding: 14px; 
+            border: none; 
+            border-radius: 10px; 
+            cursor: pointer; 
+            font-weight: bold; 
+            margin-top: 10px; 
+            font-size: 16px;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+        
+        .btn-main { 
+            background: linear-gradient(145deg, var(--primary), #5b4fcf);
+            color: #fff; 
+        }
+        
+        .btn-vote { 
+            background: linear-gradient(145deg, var(--danger), #e66767);
+            color: #fff; 
+        }
+        
+        .btn-success {
+            background: linear-gradient(145deg, var(--success), #00b894);
+            color: #000;
+        }
+        
+        .btn-warning {
+            background: linear-gradient(145deg, var(--warning), #f39c12);
+            color: #000;
+        }
+        
+        .btn-info {
+            background: linear-gradient(145deg, var(--info), #0984e3);
+            color: #fff;
+        }
+        
+        .btn:disabled { 
+            background: #444; 
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+        
+        /* 输入框样式 */
+        input, select, textarea { 
+            width: 100%; 
+            padding: 12px; 
+            background: rgba(0,0,0,0.3); 
+            border: 1px solid rgba(255,255,255,0.2); 
+            color: #fff; 
+            border-radius: 8px; 
+            margin: 10px 0; 
+            font-size: 16px;
+        }
+        
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(108, 92, 231, 0.3);
+        }
+        
+        /* 游戏日志 */
+        #log { 
+            font-size: 13px; 
+            color: #aaa; 
+            margin-top: 20px; 
+            height: 150px; 
+            overflow-y: auto; 
+            background: rgba(0,0,0,0.3); 
+            padding: 15px; 
+            border-radius: 10px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        #log div {
+            padding: 5px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        
+        #log div:first-child {
+            color: var(--primary);
+            font-weight: bold;
+        }
+        
+        /* 统计区域 */
+        .stats {
+            display: flex;
+            justify-content: space-between;
+            background: rgba(0,0,0,0.2);
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+        }
+        
+        .stat-item {
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: #aaa;
+        }
+        
+        /* 心形动画 */
+        .heart {
+            color: var(--danger);
+            animation: pulse 1.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        /* 计时器 */
+        .timer {
+            background: rgba(0,0,0,0.3);
+            padding: 10px;
+            border-radius: 10px;
+            text-align: center;
+            margin: 10px 0;
+            font-size: 14px;
+            color: var(--warning);
+            display: none;
+        }
+        
+        /* 标题 */
+        h1 {
+            text-align: center;
+            color: var(--primary);
+            margin-bottom: 30px;
+            font-size: 2.5rem;
+            text-shadow: 0 2px 10px rgba(108, 92, 231, 0.5);
+        }
+        
+        h2 {
+            color: #fff;
+            border-bottom: 2px solid var(--primary);
+            padding-bottom: 10px;
+        }
+        
+        /* 阶段指示器 */
+        .phase-indicator {
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: bold;
+            margin: 10px 0;
+            text-align: center;
+            background: rgba(108, 92, 231, 0.2);
+            border: 1px solid var(--primary);
+        }
+        
+        /* 遗言阶段 */
+        .last-words {
+            background: rgba(0,0,0,0.3);
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            margin: 10px 0;
+            font-size: 16px;
+            color: var(--warning);
+            border: 1px solid var(--warning);
+            display: none;
+        }
+        
+        .last-words.active {
+            display: block;
+            animation: lastWordsPulse 1s infinite alternate;
+        }
+        
+        @keyframes lastWordsPulse {
+            from { box-shadow: 0 0 10px var(--warning); }
+            to { box-shadow: 0 0 20px var(--warning); }
+        }
+        
+        /* 设置项 */
+        .setting-group {
+            margin-bottom: 15px;
+            padding: 10px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 10px;
+        }
+        
+        .setting-title {
+            font-size: 14px;
+            color: var(--primary);
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        /* 高级设置 */
+        .advanced-settings {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+            margin-top: 10px;
+        }
+        
+        .advanced-settings.expanded {
+            max-height: 500px;
+        }
+        
+        /* 游戏历史 */
+        .game-history {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.8);
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid var(--info);
+            display: none;
+            z-index: 1000;
+            max-width: 300px;
+            max-height: 400px;
+            overflow-y: auto;
+            backdrop-filter: blur(10px);
+        }
+        
+        .game-history.show {
+            display: block;
+        }
+        
+        /* 裁判信息 */
+        .referee-info {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.8);
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid var(--primary);
+            display: none;
+            z-index: 1000;
+            max-width: 300px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .referee-info.show {
+            display: block;
+        }
+        
+        /* 新添加的样式：回放控制 */
+        .replay-controls {
+            position: fixed;
+            bottom: 80px;
+            right: 20px;
+            background: rgba(0,0,0,0.8);
+            padding: 15px;
+            border-radius: 10px;
+            display: none;
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+        }
+        
+        .replay-controls.show {
+            display: block;
+        }
+        
+        /* 新添加的样式：游戏说明书 */
+        .manual-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9);
+            display: none;
+            z-index: 2000;
+            overflow-y: auto;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .manual-overlay.show {
+            display: block;
+        }
+        
+        .manual-content {
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(255,255,255,0.1);
+            border-radius: 20px;
+            padding: 30px;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        .manual-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 15px;
+        }
+        
+        .manual-section h3 {
+            color: var(--primary);
+            margin-top: 0;
+        }
+        
+        /* 新添加的样式：详细统计 */
+        .detailed-stats {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(0,0,0,0.8);
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid var(--success);
+            display: none;
+            z-index: 1000;
+            max-width: 400px;
+            max-height: 80vh;
+            overflow-y: auto;
+            backdrop-filter: blur(10px);
+        }
+        
+        .detailed-stats.show {
+            display: block;
+        }
+        
+        /* 新添加的样式：多人游戏 */
+        .multiplayer-panel {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.9);
+            padding: 30px;
+            border-radius: 20px;
+            border: 2px solid var(--info);
+            display: none;
+            z-index: 1500;
+            max-width: 500px;
+            width: 90%;
+            backdrop-filter: blur(20px);
+        }
+        
+        .multiplayer-panel.show {
+            display: block;
+        }
+        
+        /* 响应式设计 */
+        @media (max-width: 900px) {
+            .game-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .card-grid {
+                grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            }
+            
+            .detailed-stats {
+                max-width: 300px;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .card-grid {
+                grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+                gap: 10px;
+            }
+            
+            .card {
+                height: 150px;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            body {
+                padding: 10px;
+            }
+            
+            .card-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .panel {
+                padding: 15px;
+            }
+        }
+    </style>
+    
+    <!-- 游戏说明书内容 -->
+    <div id="manual" class="manual-overlay">
+        <div class="manual-content">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h1 style="margin: 0;"><i class="fas fa-book"></i> 游戏说明书</h1>
+                <button onclick="closeManual()" style="background: var(--danger); color: white; border: none; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 20px;">×</button>
+            </div>
+            
+            <div class="manual-section">
+                <h3><i class="fas fa-gamepad"></i> 游戏介绍</h3>
+                <p><strong>谁是卧底</strong>是一款经典的推理类多人游戏，适合4-12人游玩。游戏中分为三个角色：</p>
+                <ul>
+                    <li><strong style="color: var(--success);">平民</strong>：持有平民词，需要找出卧底并投票淘汰</li>
+                    <li><strong style="color: var(--danger);">卧底</strong>：持有卧底词，需要隐藏身份避免被淘汰</li>
+                    <li><strong style="color: var(--primary);">白板</strong>：没有词语，需要猜测词语并隐藏身份</li>
+                </ul>
+                <p>游戏目标：平民找出所有卧底，卧底隐藏身份直到人数与平民相当。</p>
+            </div>
+            
+            <div class="manual-section">
+                <h3><i class="fas fa-play-circle"></i> 游戏流程</h3>
+                <ol>
+                    <li><strong>游戏设置</strong>：选择玩家人数、难度级别和时间设置</li>
+                    <li><strong>身份查看</strong>：玩家依次点击自己的卡片查看身份和词语</li>
+                    <li><strong>描述环节</strong>：玩家轮流描述自己的词语（不能直接说出词语）</li>
+                    <li><strong>投票环节</strong>：根据描述投票选出怀疑的卧底</li>
+                    <li><strong>遗言阶段</strong>：被淘汰的玩家发表遗言</li>
+                    <li><strong>游戏继续</strong>：重复描述和投票，直到一方胜利</li>
+                </ol>
+            </div>
+            
+            <div class="manual-section">
+                <h3><i class="fas fa-cogs"></i> 游戏设置详解</h3>
+                <p><strong>难度级别：</strong></p>
+                <ul>
+                    <li><strong>简单</strong>：1个卧底，适合新手</li>
+                    <li><strong>普通</strong>：1个卧底 + 1个白板，标准玩法</li>
+                    <li><strong>困难</strong>：2个卧底，更具挑战性</li>
+                    <li><strong>专家</strong>：2个卧底 + 1个白板，高难度</li>
+                    <li><strong>自定义</strong>：自由设置卧底和白板数量</li>
+                </ul>
+                <p><strong>时间设置：</strong></p>
+                <ul>
+                    <li><strong>看牌时间</strong>：查看身份的时间限制（2-10秒）</li>
+                    <li><strong>遗言时间</strong>：被淘汰玩家发言时间（3-15秒）</li>
+                    <li><strong>描述时间</strong>：描述词语的时间限制（10-60秒）</li>
+                </ul>
+            </div>
+            
+            <div class="manual-section">
+                <h3><i class="fas fa-keyboard"></i> 快捷键</h3>
+                <ul>
+                    <li><strong>空格键</strong>：在看牌阶段快速跳过，在描述阶段跳过描述，在遗言阶段跳过遗言</li>
+                    <li><strong>Enter键</strong>：在投票阶段快速投票</li>
+                    <li><strong>F9键</strong>：显示/隐藏裁判信息（可以看到所有玩家的身份）</li>
+                    <li><strong>F10键</strong>：显示/隐藏游戏历史记录</li>
+                    <li><strong>F11键</strong>：显示/隐藏详细统计数据</li>
+                    <li><strong>F12键</strong>：显示/隐藏游戏回放控制面板</li>
+                    <li><strong>ESC键</strong>：暂停/恢复游戏</li>
+                    <li><strong>Ctrl+R</strong>：重新开始游戏</li>
+                    <li><strong>Ctrl+S</strong>：保存当前游戏进度</li>
+                    <li><strong>Ctrl+L</strong>：加载已保存的游戏进度</li>
+                </ul>
+            </div>
+            
+            <div class="manual-section">
+                <h3><i class="fas fa-chart-line"></i> 高级功能</h3>
+                <ul>
+                    <li><strong>游戏回放</strong>：可以回放整局游戏的完整过程</li>
+                    <li><strong>详细统计</strong>：查看玩家的投票模式、描述习惯等数据</li>
+                    <li><strong>游戏保存</strong>：可以保存游戏进度，稍后继续</li>
+                    <li><strong>智能AI</strong>：AI玩家可以自动生成合理的描述</li>
+                    <li><strong>语音提示</strong>：游戏全程有语音提示（可关闭）</li>
+                    <li><strong>自定义词库</strong>：可以添加自己的词语对</li>
+                </ul>
+            </div>
+            
+            <div class="manual-section">
+                <h3><i class="fas fa-lightbulb"></i> 游戏策略</h3>
+                <p><strong>平民策略：</strong></p>
+                <ul>
+                    <li>描述要具体但不能太明显，避免让卧底猜到词语</li>
+                    <li>注意观察其他玩家的描述是否合理</li>
+                    <li>投票要谨慎，避免误伤平民</li>
+                </ul>
+                <p><strong>卧底策略：</strong></p>
+                <ul>
+                    <li>描述要模糊，避免暴露自己不知道词语</li>
+                    <li>观察平民的描述，猜测平民词</li>
+                    <li>可以模仿平民的描述风格</li>
+                </ul>
+                <p><strong>白板策略：</strong></p>
+                <ul>
+                    <li>通过其他人的描述猜测词语</li>
+                    <li>描述要中立，避免暴露自己没有词语</li>
+                    <li>可以假装自己是平民或卧底</li>
+                </ul>
+            </div>
+            
+            <div class="manual-section">
+                <h3><i class="fas fa-mobile-alt"></i> 移动端使用</h3>
+                <p>游戏已适配移动设备，支持触摸操作。建议将本游戏添加到主屏幕以获得最佳体验：</p>
+                <ol>
+                    <li>在浏览器中打开菜单（通常是三个点）</li>
+                    <li>选择"添加到主屏幕"或"安装应用"</li>
+                    <li>确认添加，游戏将像原生应用一样运行</li>
+                </ol>
+            </div>
+            
+            <div style="text-align: center; margin-top: 30px;">
+                <button onclick="closeManual()" class="btn btn-main" style="width: 200px;">
+                    <i class="fas fa-check"></i> 我已阅读并理解
+                </button>
+            </div>
+        </div>
+    </div>
+</head>
+<body>
+
+<!-- 声音控制 -->
+<div class="sound-control">
+    <button id="soundToggle" class="btn" style="padding: 8px; font-size: 14px; width: auto;">
+        <i class="fas fa-volume-up"></i> 声音开
+    </button>
+    <button id="musicToggle" class="btn" style="padding: 8px; font-size: 14px; width: auto; display:none;">
+        <i class="fas fa-music"></i> 音乐
+    </button>
+</div>
+
+<!-- 帮助图标 -->
+<div class="help-icon" id="helpIcon" onclick="showManual()">
+    <i class="fas fa-question"></i>
+</div>
+
+<!-- 游戏历史面板 -->
+<div id="gameHistory" class="game-history">
+    <h3><i class="fas fa-history"></i> 游戏历史</h3>
+    <div id="historyContent"></div>
+</div>
+
+<!-- 详细统计面板 -->
+<div id="detailedStats" class="detailed-stats">
+    <h3><i class="fas fa-chart-bar"></i> 详细统计</h3>
+    <div id="statsContent"></div>
+    <small>按 F11 显示/隐藏此信息</small>
+</div>
+
+<!-- 回放控制面板 -->
+<div id="replayControls" class="replay-controls">
+    <h3><i class="fas fa-play-circle"></i> 游戏回放</h3>
+    <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+        <button onclick="replayStep(-1)" class="btn" style="padding: 5px; font-size: 12px;"><i class="fas fa-backward"></i></button>
+        <button onclick="toggleReplay()" class="btn" style="padding: 5px; font-size: 12px;"><i class="fas fa-play"></i></button>
+        <button onclick="replayStep(1)" class="btn" style="padding: 5px; font-size: 12px;"><i class="fas fa-forward"></i></button>
+        <button onclick="stopReplay()" class="btn" style="padding: 5px; font-size: 12px;"><i class="fas fa-stop"></i></button>
+    </div>
+    <input type="range" id="replaySlider" min="0" max="100" value="0" style="width: 100%;">
+    <small>按 F12 显示/隐藏此面板</small>
+</div>
+
+<h1><i class="fas fa-user-secret"></i> 谁是卧底 - 莉雯版</h1>
+
+<!-- 裁判专用信息区域 -->
+<div id="refereeInfo" class="referee-info">
+    <h3><i class="fas fa-eye"></i> 裁判信息</h3>
+    <p>平民词: <span id="civilianWord">未分配</span></p>
+    <p>卧底词: <span id="undercoverWord">未分配</span></p>
+    <p>白板: <span id="blankWord">未分配</span></p>
+    <div class="role-stat">
+        <div class="role-item">
+            <div class="role-count" id="refCivilianCount">0</div>
+            <div class="role-name">平民</div>
+        </div>
+        <div class="role-item">
+            <div class="role-count" id="refUndercoverCount">0</div>
+            <div class="role-name">卧底</div>
+        </div>
+        <div class="role-item">
+            <div class="role-count" id="refBlankCount">0</div>
+            <div class="role-name">白板</div>
+        </div>
+    </div>
+    <small>按 F9 显示/隐藏此信息</small>
+</div>
+
+<!-- 多人游戏面板 -->
+<div id="multiplayerPanel" class="multiplayer-panel">
+    <h2><i class="fas fa-users"></i> 多人游戏</h2>
+    <div id="multiplayerContent"></div>
+    <button onclick="hideMultiplayerPanel()" class="btn" style="background: var(--danger); margin-top: 20px;">
+        <i class="fas fa-times"></i> 关闭
+    </button>
+</div>
+
+<div class="game-container">
+    <div class="panel">
+        <h2><i class="fas fa-gavel"></i> 智能裁判</h2>
+        
+        <div id="phaseIndicator" class="phase-indicator">游戏未开始</div>
+        
+        <!-- 遗言阶段显示 -->
+        <div id="lastWords" class="last-words">
+            <i class="fas fa-microphone-alt"></i> <strong>遗言阶段</strong>
+            <div id="lastWordsText">请 <span id="lastWordsPlayer">X</span> 号玩家发表遗言</div>
+            <div class="last-words-timer">倒计时: <span id="lastWordsCountdown">5</span>秒</div>
+            <small>遗言时间结束后，游戏继续</small>
+        </div>
+        
+        <!-- 描述记录 -->
+        <div id="descriptionHistory" class="description-history" style="display:none;">
+            <h4><i class="fas fa-comments"></i> 描述记录</h4>
+            <div id="descriptionList"></div>
+        </div>
+        
+        <div id="setup">
+            <div class="setting-group">
+                <div class="setting-title"><i class="fas fa-users"></i> 基本设置</div>
+                <label>玩家人数:</label>
+                <input type="range" id="pNum" min="4" max="12" value="6" oninput="updatePlayerCount(this.value)">
+                <div style="text-align:center; margin:5px 0; font-size:18px; color:var(--primary);" id="playerCountDisplay">6 人</div>
+                
+                <label>难度级别:</label>
+                <select id="difficulty">
+                    <option value="easy">简单 (1卧底)</option>
+                    <option value="normal" selected>普通 (1卧底+1白板)</option>
+                    <option value="hard">困难 (2卧底)</option>
+                    <option value="expert">专家 (2卧底+1白板)</option>
+                    <option value="custom">自定义</option>
+                </select>
+                
+                <div id="customDifficulty" style="display:none;">
+                    <label>卧底数量:</label>
+                    <input type="number" id="customUndercover" min="1" max="3" value="1">
+                    
+                    <label>白板数量:</label>
+                    <input type="number" id="customBlank" min="0" max="2" value="1">
+                </div>
+            </div>
+            
+            <div class="setting-group">
+                <div class="setting-title"><i class="fas fa-clock"></i> 时间设置</div>
+                <label>看牌时间 (秒):</label>
+                <input type="number" id="viewTime" min="2" max="10" value="3">
+                
+                <label>遗言时间 (秒):</label>
+                <input type="number" id="lastWordsTime" min="3" max="15" value="5">
+                
+                <label>描述时间 (秒):</label>
+                <input type="number" id="describeTime" min="10" max="60" value="30">
+            </div>
+            
+            <div class="setting-group">
+                <div class="setting-title"><i class="fas fa-font"></i> 词语设置</div>
+                <label>词语来源:</label>
+                <select id="wordSource" onchange="toggleWordSource()">
+                    <option value="default" selected>默认词库</option>
+                    <option value="custom">自定义词库</option>
+                    <option value="ai">AI生成</option>
+                </select>
+                
+                <div id="customWordsSection" style="display:none;">
+                    <label>自定义词语 (每行一对, 用逗号分隔):</label>
+                    <textarea id="customWords" class="custom-words-input" placeholder="微信,支付宝
+手机,电脑
+苹果,香蕉
+外卖,快递"></textarea>
+                </div>
+                
+                <label>随机分配:</label>
+                <select id="wordRandomness">
+                    <option value="shuffle">完全随机</option>
+                    <option value="balanced">平衡分配</option>
+                    <option value="strategic">策略分配</option>
+                </select>
+            </div>
+            
+            <button class="btn btn-main" onclick="init()">
+                <i class="fas fa-play"></i> 开始游戏
+            </button>
+            
+            <div style="display: flex; gap: 10px; margin-top: 10px;">
+                <button class="btn btn-info" onclick="toggleAdvancedSettings()" style="flex: 1;">
+                    <i class="fas fa-cog"></i> 高级设置
+                </button>
+                <button class="btn" onclick="showManual()" style="flex: 1; background: #555;">
+                    <i class="fas fa-book"></i> 说明书
+                </button>
+            </div>
+            
+            <div id="advancedSettings" class="advanced-settings">
+                <div class="setting-group">
+                    <div class="setting-title"><i class="fas fa-gamepad"></i> 游戏规则</div>
+                    <label>
+                        <input type="checkbox" id="allowRevote" checked> 允许重新投票
+                    </label>
+                    <label>
+                        <input type="checkbox" id="autoSkipDescribe"> 自动跳过描述
+                    </label>
+                    <label>
+                        <input type="checkbox" id="showRoleStats" checked> 显示角色统计
+                    </label>
+                    <label>
+                        <input type="checkbox" id="recordDescriptions"> 记录描述内容
+                    </label>
+                    <label>
+                        <input type="checkbox" id="enableAI"> 启用AI玩家
+                    </label>
+                </div>
+                
+                <div class="setting-group">
+                    <div class="setting-title"><i class="fas fa-chart-bar"></i> 游戏功能</div>
+                    <button class="btn" style="background:#555; width:100%;" onclick="showGameStats()">
+                        <i class="fas fa-chart-pie"></i> 查看游戏统计
+                    </button>
+                    <button class="btn" style="background:#666; width:100%; margin-top:5px;" onclick="showDetailedStats()">
+                        <i class="fas fa-chart-line"></i> 详细数据分析
+                    </button>
+                    <button class="btn" style="background:#777; width:100%; margin-top:5px;" onclick="enableReplayMode()">
+                        <i class="fas fa-play-circle"></i> 游戏回放模式
+                    </button>
+                </div>
+                
+                <div class="setting-group">
+                    <div class="setting-title"><i class="fas fa-save"></i> 游戏保存</div>
+                    <div style="display: flex; gap: 10px;">
+                        <button class="btn" style="background:#444; flex:1;" onclick="saveGameState()">
+                            <i class="fas fa-save"></i> 保存进度
+                        </button>
+                        <button class="btn" style="background:#333; flex:1;" onclick="loadGameState()">
+                            <i class="fas fa-folder-open"></i> 加载进度
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="setting-group">
+                    <div class="setting-title"><i class="fas fa-users"></i> 多人游戏</div>
+                    <button class="btn" style="background:var(--info); width:100%;" onclick="showMultiplayerPanel()">
+                        <i class="fas fa-network-wired"></i> 创建/加入房间
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="gameUI" style="display:none">
+            <div class="timer" id="timer">
+                <i class="fas fa-clock"></i> 剩余看牌时间: <span id="timeLeft">3</span>秒
+            </div>
+            
+            <div class="stats">
+                <div class="stat-item">
+                    <div class="stat-value"><i class="fas fa-heart heart"></i> <span id="hearts">3</span></div>
+                    <div class="stat-label">剩余投票次数</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="aliveCount">6</div>
+                    <div class="stat-label">存活玩家</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="viewedCount">0</div>
+                    <div class="stat-label">已看牌</div>
+                </div>
+            </div>
+            
+            <!-- 角色统计 -->
+            <div id="roleStats" class="role-stat" style="display:none;">
+                <div class="role-item">
+                    <div class="role-count" id="civilianCount">0</div>
+                    <div class="role-name">平民</div>
+                </div>
+                <div class="role-item">
+                    <div class="role-count" id="undercoverCount">0</div>
+                    <div class="role-name">卧底</div>
+                </div>
+                <div class="role-item">
+                    <div class="role-count" id="blankCount">0</div>
+                    <div class="role-name">白板</div>
+                </div>
+            </div>
+            
+            <p id="guideText">请点击您的编号卡片查看身份词</p>
+            
+            <!-- 描述环节按钮 -->
+            <button class="btn btn-warning" id="startDescribeBtn" onclick="startDescribeRound()" style="display:none;">
+                <i class="fas fa-microphone"></i> 开始描述环节
+            </button>
+            
+            <div id="voteSection" style="display:none; margin-top:15px;">
+                <p id="describePrompt" style="margin-bottom:10px;">请发言描述你的词语</p>
+                
+                <!-- 描述计时器 -->
+                <div class="timer" id="describeTimer" style="display:none;">
+                    <i class="fas fa-hourglass-half"></i> 描述剩余时间: <span id="describeTimeLeft">30</span>秒
+                </div>
+                
+                <!-- 描述输入框 -->
+                <div id="descriptionInput" style="display:none; margin-bottom:10px;">
+                    <input type="text" id="descriptionText" placeholder="输入你的描述 (可选)">
+                    <div style="display: flex; gap: 10px; margin-top:5px;">
+                        <button class="btn" onclick="submitDescription()" style="background:#666; flex:1;">
+                            <i class="fas fa-paper-plane"></i> 提交描述
+                        </button>
+                        <button class="btn" onclick="generateAIDescription()" style="background:#777; flex:1;">
+                            <i class="fas fa-robot"></i> AI建议
+                        </button>
+                    </div>
+                </div>
+                
+                <div style="display: flex; gap: 10px;">
+                    <input type="number" id="voteId" placeholder="投票出局编号" min="1">
+                    <button class="btn btn-vote" id="voteBtn" onclick="vote()">
+                        <i class="fas fa-vote-yea"></i> 投票
+                    </button>
+                </div>
+                
+                <div style="display: flex; gap: 10px; margin-top:10px;">
+                    <button class="btn" id="skipDescribeBtn" onclick="skipDescribe()" style="background:#555; flex:1;">
+                        <i class="fas fa-forward"></i> 跳过描述
+                    </button>
+                    <button class="btn" id="autoDescribeBtn" onclick="autoDescribe()" style="background:#777; flex:1;">
+                        <i class="fas fa-robot"></i> 自动描述
+                    </button>
+                </div>
+            </div>
+            
+            <div style="margin-top:20px; display:flex; gap:10px;">
+                <button class="btn" style="background:#333; color:#aaa; flex:1;" onclick="location.reload()">
+                    <i class="fas fa-redo"></i> 重新开始
+                </button>
+                <button class="btn" style="background:#444; color:#aaa; flex:1;" onclick="pauseGame()">
+                    <i class="fas fa-pause"></i> 暂停
+                </button>
+                <button class="btn" style="background:#555; color:#aaa; flex:1;" onclick="saveGameState()">
+                    <i class="fas fa-save"></i> 保存
+                </button>
+            </div>
+        </div>
+        
+        <h3 style="margin-top: 20px;"><i class="fas fa-scroll"></i> 游戏日志</h3>
+        <div id="log"></div>
+    </div>
+
+    <div class="card-grid" id="grid"></div>
+</div>
+
+<script>
+    // 增强的游戏状态管理
+    let state = { 
+        players: [], 
+        chances: 3, 
+        viewing: false, 
+        viewCount: 0,
+        gamePhase: 'setup', // setup, viewing, describing, voting, lastwords, ended, paused
+        timer: null,
+        currentViewer: null,
+        currentRound: 1,
+        currentDescriber: 1,
+        descriptionComplete: false,
+        words: [],
+        lastWordsTimer: null,
+        descriptions: [],
+        gameActions: [], // 用于游戏回放
+        isReplaying: false,
+        replayIndex: 0,
+        
+        // 增强的游戏统计
+        gameStats: {
+            totalGames: 0,
+            civilianWins: 0,
+            undercoverWins: 0,
+            averageRounds: 0,
+            history: [],
+            detailedStats: {
+                gameDurations: [],
+                votePatterns: [],
+                wordPopularity: {},
+                roleDistribution: {},
+                winRatesByDifficulty: {},
+                playerStats: {}
+            }
+        },
+        
+        // 扩展的设置
+        settings: {
+            soundEnabled: true,
+            musicEnabled: false,
+            viewTime: 3,
+            lastWordsTime: 5,
+            describeTime: 30,
+            allowRevote: true,
+            autoSkipDescribe: false,
+            showRoleStats: true,
+            recordDescriptions: false,
+            enableAI: false,
+            aiPlayers: []
+        },
+        
+        // 多人游戏状态
+        multiplayer: {
+            enabled: false,
+            roomId: null,
+            players: [],
+            socket: null
+        }
+    };
+    
+    // 增强的默认词库
+    const ENHANCED_DEFAULT_WORDS = [
+        ["微信", "支付宝"],
+        ["手机", "电脑"],
+        ["苹果", "香蕉"],
+        ["外卖", "快递"],
+        ["咖啡", "茶"],
+        ["电影", "电视剧"],
+        ["夏天", "冬天"],
+        ["篮球", "足球"],
+        ["微博", "抖音"],
+        ["火车", "飞机"],
+        ["面包", "蛋糕"],
+        ["啤酒", "红酒"],
+        ["跑步", "游泳"],
+        ["钢琴", "吉他"],
+        ["海洋", "湖泊"],
+        ["沙漠", "草原"],
+        ["闪电", "雷鸣"],
+        ["蝴蝶", "蜜蜂"],
+        ["图书馆", "书店"],
+        ["医生", "护士"],
+        ["老师", "学生"],
+        ["警察", "保安"],
+        ["猫", "狗"],
+        ["太阳", "月亮"],
+        ["星星", "星座"],
+        ["雨伞", "雨衣"],
+        ["冰箱", "空调"],
+        ["微波炉", "烤箱"]
+    ];
+    
+    // AI描述词库
+    const AI_DESCRIPTORS = {
+        '微信': ['社交软件', '可以发朋友圈', '绿色图标', '即时通讯', '有支付功能'],
+        '支付宝': ['支付工具', '可以扫码付款', '蓝色图标', '金融应用', '有余额宝'],
+        '手机': ['通讯工具', '可以上网', '便携设备', '智能终端', '有摄像头'],
+        '电脑': ['电子产品', '可以办公', '有显示屏', '计算设备', '有键盘鼠标'],
+        '苹果': ['一种水果', '红色或绿色', '有核', '常见水果', '可以榨汁'],
+        '香蕉': ['黄色水果', '弯曲形状', '热带水果', '有皮', '软糯香甜'],
+        '外卖': ['配送服务', '可以点餐', '送到家', '在线订购', '有配送员'],
+        '快递': ['物流服务', '可以寄送', '运输物品', '有快递员', '有包裹'],
+        '咖啡': ['一种饮品', '提神醒脑', '有苦味', '可以加糖', '热饮'],
+        '茶': ['传统饮品', '有茶香', '可以冲泡', '有茶叶', '有茶文化'],
+        '电影': ['影视作品', '在影院观看', '有剧情', '有演员', '有导演'],
+        '电视剧': ['连续剧集', '在电视播放', '分集播出', '有角色', '有剧情发展']
+    };
+    
+    // 音效管理器
+    class SoundManager {
+        constructor() {
+            this.audioContext = null;
+            this.sounds = {};
+            this.init();
+        }
+        
+        init() {
+            try {
+                this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            } catch (e) {
+                console.log("Web Audio API不支持或已被禁用");
+            }
+        }
+        
+        playTone(frequency, duration = 0.3, type = 'sine') {
+            if (!state.settings.soundEnabled || !this.audioContext) return;
+            
+            try {
+                const oscillator = this.audioContext.createOscillator();
+                const gainNode = this.audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(this.audioContext.destination);
+                
+                oscillator.frequency.setValueAtTime(frequency, this.audioContext.currentTime);
+                oscillator.type = type;
+                
+                gainNode.gain.setValueAtTime(0.3, this.audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + duration);
+                
+                oscillator.start(this.audioContext.currentTime);
+                oscillator.stop(this.audioContext.currentTime + duration);
+            } catch (e) {
+                console.log("音效播放失败");
+            }
+        }
+        
+        playSound(type) {
+            switch(type) {
+                case 'flip':
+                    this.playTone(523.25, 0.3);
+                    setTimeout(() => this.playTone(659.25, 0.3), 100);
+                    break;
+                case 'success':
+                    this.playTone(783.99, 0.3);
+                    setTimeout(() => this.playTone(1046.50, 0.4), 100);
+                    break;
+                case 'danger':
+                    this.playTone(392.00, 0.3);
+                    setTimeout(() => this.playTone(311.13, 0.4), 100);
+                    break;
+                case 'warning':
+                    this.playTone(440.00, 0.3);
+                    setTimeout(() => this.playTone(349.23, 0.4), 100);
+                    break;
+                case 'info':
+                    this.playTone(659.25, 0.3);
+                    setTimeout(() => this.playTone(523.25, 0.3), 100);
+                    break;
+                case 'vote':
+                    this.playTone(261.63, 0.2);
+                    setTimeout(() => this.playTone(329.63, 0.2), 50);
+                    setTimeout(() => this.playTone(392.00, 0.3), 100);
+                    break;
+            }
+        }
+    }
+    
+    const soundManager = new SoundManager();
+    
+    // 游戏状态持久化
+    function saveGameState() {
+        const gameState = {
+            players: state.players,
+            chances: state.chances,
+            viewing: state.viewing,
+            viewCount: state.viewCount,
+            gamePhase: state.gamePhase,
+            currentViewer: state.currentViewer,
+            currentRound: state.currentRound,
+            currentDescriber: state.currentDescriber,
+            descriptionComplete: state.descriptionComplete,
+            words: state.words,
+            descriptions: state.descriptions,
+            gameActions: state.gameActions,
+            timestamp: Date.now()
+        };
+        
+        localStorage.setItem('undercoverGameState', JSON.stringify(gameState));
+        addLog("游戏进度已保存", 'success');
+        speak("游戏进度已保存");
+        
+        // 记录到详细统计
+        recordGameAction('save_game', { timestamp: Date.now() });
+    }
+    
+    function loadGameState() {
+        const saved = localStorage.getItem('undercoverGameState');
+        if (!saved) {
+            alert("没有找到已保存的游戏进度");
+            return;
+        }
+        
+        if (confirm('检测到未完成的游戏进度，是否加载？')) {
+            try {
+                const gameState = JSON.parse(saved);
+                
+                // 恢复游戏状态
+                state.players = gameState.players;
+                state.chances = gameState.chances;
+                state.viewing = gameState.viewing;
+                state.viewCount = gameState.viewCount;
+                state.gamePhase = gameState.gamePhase;
+                state.currentViewer = gameState.currentViewer;
+                state.currentRound = gameState.currentRound;
+                state.currentDescriber = gameState.currentDescriber;
+                state.descriptionComplete = gameState.descriptionComplete;
+                state.words = gameState.words;
+                state.descriptions = gameState.descriptions || [];
+                state.gameActions = gameState.gameActions || [];
+                
+                // 更新裁判信息
+                if (state.words.length >= 2) {
+                    document.getElementById('civilianWord').textContent = state.words[0];
+                    document.getElementById('undercoverWord').textContent = state.words[1];
+                    document.getElementById('blankWord').textContent = '白板';
+                }
+                
+                // 更新UI
+                document.getElementById('setup').style.display = 'none';
+                document.getElementById('gameUI').style.display = 'block';
+                
+                if (state.settings.recordDescriptions) {
+                    document.getElementById('descriptionHistory').style.display = 'block';
+                    document.getElementById('descriptionInput').style.display = 'block';
+                }
+                
+                render();
+                updateStats();
+                updatePhaseIndicator();
+                updateRoleStats();
+                
+                // 根据游戏阶段更新UI
+                updateUIForPhase();
+                
+                addLog("游戏进度已加载", 'success');
+                speak("游戏进度已加载");
+                
+                // 记录到详细统计
+                recordGameAction('load_game', { timestamp: Date.now() });
+            } catch (e) {
+                console.error("加载游戏状态失败:", e);
+                alert("加载游戏状态失败，数据可能已损坏");
+            }
+        }
+    }
+    
+    function updateUIForPhase() {
+        switch(state.gamePhase) {
+            case 'viewing':
+                document.getElementById('guideText').innerText = "请继续查看身份";
+                break;
+            case 'describing':
+                if (state.descriptionComplete) {
+                    document.getElementById('voteSection').style.display = 'block';
+                    document.getElementById('startDescribeBtn').style.display = 'none';
+                    document.getElementById('guideText').innerText = "描述完成，请投票";
+                } else {
+                    document.getElementById('startDescribeBtn').style.display = 'block';
+                    document.getElementById('guideText').innerText = "准备开始描述环节";
+                }
+                break;
+            case 'voting':
+                document.getElementById('voteSection').style.display = 'block';
+                document.getElementById('startDescribeBtn').style.display = 'none';
+                document.getElementById('guideText').innerText = "请投票选出卧底";
+                break;
+        }
+    }
+    
+    // 游戏回放系统
+    function recordGameAction(action, data) {
+        state.gameActions.push({
+            timestamp: Date.now(),
+            action,
+            data,
+            round: state.currentRound,
+            phase: state.gamePhase,
+            gameState: JSON.parse(JSON.stringify({
+                players: state.players,
+                chances: state.chances,
+                gamePhase: state.gamePhase,
+                currentRound: state.currentRound
+            }))
+        });
+    }
+    
+    function enableReplayMode() {
+        if (state.gameActions.length === 0) {
+            alert("暂无游戏记录可供回放");
+            return;
+        }
+        
+        state.isReplaying = true;
+        state.replayIndex = 0;
+        document.getElementById('replayControls').classList.add('show');
+        replayToIndex(0);
+        
+        addLog("进入游戏回放模式", 'info');
+    }
+    
+    function replayToIndex(index) {
+        if (index < 0 || index >= state.gameActions.length) return;
+        
+        state.replayIndex = index;
+        const action = state.gameActions[index];
+        
+        // 恢复游戏状态
+        Object.assign(state, action.gameState);
+        
+        // 更新UI
+        render();
+        updateStats();
+        updatePhaseIndicator();
+        updateRoleStats();
+        
+        // 更新回放控制
+        document.getElementById('replaySlider').value = (index / state.gameActions.length) * 100;
+        
+        addLog(`回放: ${action.action} (第${action.round}轮)`, 'info');
+    }
+    
+    function replayStep(direction) {
+        const newIndex = state.replayIndex + direction;
+        if (newIndex >= 0 && newIndex < state.gameActions.length) {
+            replayToIndex(newIndex);
+        }
+    }
+    
+    function toggleReplay() {
+        if (state.replayInterval) {
+            stopReplay();
+        } else {
+            startReplay();
+        }
+    }
+    
+    function startReplay() {
+        state.replayInterval = setInterval(() => {
+            if (state.replayIndex < state.gameActions.length - 1) {
+                replayStep(1);
+            } else {
+                stopReplay();
+            }
+        }, 1000);
+    }
+    
+    function stopReplay() {
+        if (state.replayInterval) {
+            clearInterval(state.replayInterval);
+            state.replayInterval = null;
+        }
+    }
+    
+    // 详细统计系统
+    function showDetailedStats() {
+        const statsContent = document.getElementById('statsContent');
+        
+        // 计算统计数据
+        const alivePlayers = state.players.filter(p => p.alive);
+        const undercoverAlive = alivePlayers.filter(p => p.type === 'undercover').length;
+        const civilianAlive = alivePlayers.filter(p => p.type === 'civilian').length;
+        const blankAlive = alivePlayers.filter(p => p.type === 'blank').length;
+        
+        // 投票模式分析
+        const votePatterns = analyzeVotePatterns();
+        
+        // 词语流行度
+        const wordPopularity = calculateWordPopularity();
+        
+        let html = `
+            <div class="stats" style="flex-direction: column; align-items: flex-start;">
+                <div><strong>当前游戏统计:</strong></div>
+                <div>存活玩家: ${alivePlayers.length}</div>
+                <div>平民: ${civilianAlive} | 卧底: ${undercoverAlive} | 白板: ${blankAlive}</div>
+                <div>当前回合: ${state.currentRound}</div>
+                <div>剩余投票次数: ${state.chances}</div>
+            </div>
+            
+            <div style="margin-top: 15px;">
+                <strong>投票模式分析:</strong><br>
+                ${votePatterns.map(pattern => `${pattern.from}号 → ${pattern.to}号 (${pattern.count}次)`).join('<br>') || '暂无数据'}
+            </div>
+            
+            <div style="margin-top: 15px;">
+                <strong>词语流行度:</strong><br>
+                平民词: "${state.words[0]}"<br>
+                卧底词: "${state.words[1]}"
+            </div>
+            
+            <div style="margin-top: 15px;">
+                <strong>历史统计:</strong><br>
+                总游戏次数: ${state.gameStats.totalGames}<br>
+                平民胜率: ${state.gameStats.totalGames > 0 ? ((state.gameStats.civilianWins / state.gameStats.totalGames) * 100).toFixed(1) : 0}%<br>
+                卧底胜率: ${state.gameStats.totalGames > 0 ? ((state.gameStats.undercoverWins / state.gameStats.totalGames) * 100).toFixed(1) : 0}%<br>
+                平均回合数: ${state.gameStats.averageRounds.toFixed(1)}
+            </div>
+        `;
+        
+        statsContent.innerHTML = html;
+        document.getElementById('detailedStats').classList.toggle('show');
+    }
+    
+    function analyzeVotePatterns() {
+        // 简单的投票模式分析
+        const patterns = [];
+        const votes = state.gameActions.filter(a => a.action === 'vote');
+        
+        votes.forEach(vote => {
+            const from = vote.data.voter || '未知';
+            const to = vote.data.voted;
+            
+            const existing = patterns.find(p => p.from === from && p.to === to);
+            if (existing) {
+                existing.count++;
+            } else {
+                patterns.push({ from, to, count: 1 });
+            }
+        });
+        
+        return patterns.sort((a, b) => b.count - a.count).slice(0, 5);
+    }
+    
+    function calculateWordPopularity() {
+        // 记录词语使用频率
+        if (!state.gameStats.detailedStats.wordPopularity[state.words[0]]) {
+            state.gameStats.detailedStats.wordPopularity[state.words[0]] = 0;
+        }
+        if (!state.gameStats.detailedStats.wordPopularity[state.words[1]]) {
+            state.gameStats.detailedStats.wordPopularity[state.words[1]] = 0;
+        }
+        
+        state.gameStats.detailedStats.wordPopularity[state.words[0]]++;
+        state.gameStats.detailedStats.wordPopularity[state.words[1]]++;
+        
+        saveGameStats();
+    }
+    
+    // 智能AI描述生成
+    function generateSmartDescription(word, role) {
+        // 如果词库中有该词的描述，从词库中随机选择
+        if (AI_DESCRIPTORS[word]) {
+            const descriptors = AI_DESCRIPTORS[word];
+            
+            // 根据角色调整描述
+            if (role === 'undercover') {
+                // 卧底给出模糊描述
+                const vaguePrefixes = ['一种', '某个', '某种', '类似的', '关于'];
+                const vagueSuffixes = ['东西', '物品', '事物', '概念', '的'];
+                const randomPrefix = vaguePrefixes[Math.floor(Math.random() * vaguePrefixes.length)];
+                const randomSuffix = vagueSuffixes[Math.floor(Math.random() * vagueSuffixes.length)];
+                
+                // 随机选择一个描述并模糊化
+                const randomDescriptor = descriptors[Math.floor(Math.random() * descriptors.length)];
+                return `${randomPrefix}${randomDescriptor}${randomSuffix}`;
+            } else if (role === 'blank') {
+                // 白板给出中立描述
+                const blankDescriptions = [
+                    "我不太确定...",
+                    "这个词有点难描述",
+                    "我想想该怎么描述",
+                    "嗯...让我思考一下",
+                    "这个词语很有意思",
+                    "我觉得这个词语很常见",
+                    "这个词语让我想起一些东西"
+                ];
+                return blankDescriptions[Math.floor(Math.random() * blankDescriptions.length)];
+            } else {
+                // 平民给出具体描述
+                return descriptors[Math.floor(Math.random() * descriptors.length)];
+            }
+        } else {
+            // 词库中没有该词，生成通用描述
+            const genericDescriptions = {
+                'civilian': ['常见的事物', '日常生活中经常见到', '大家都很熟悉'],
+                'undercover': ['不太确定是什么', '可能是一种常见的东西', '有点难以描述'],
+                'blank': ['我不知道该怎么说', '让我再想想', '这个词语很特别']
+            };
+            
+            const descList = genericDescriptions[role] || genericDescriptions.civilian;
+            return descList[Math.floor(Math.random() * descList.length)];
+        }
+    }
+    
+    function generateAIDescription() {
+        const player = state.players.find(p => p.id === state.currentDescriber);
+        if (!player) return;
+        
+        const description = generateSmartDescription(player.w, player.type);
+        document.getElementById('descriptionText').value = description;
+    }
+    
+    // 多人游戏功能（模拟）
+    function showMultiplayerPanel() {
+        const content = document.getElementById('multiplayerContent');
+        content.innerHTML = `
+            <div style="margin-bottom: 20px;">
+                <p>多人游戏功能正在开发中...</p>
+                <p>当前版本为本地游戏模式，您可以通过以下方式模拟多人游戏：</p>
+                <ol>
+                    <li>将游戏链接分享给朋友</li>
+                    <li>使用相同的设置开始游戏</li>
+                    <li>通过语音通话进行交流</li>
+                    <li>轮流操作同一台设备</li>
+                </ol>
+            </div>
+            <div class="setting-group">
+                <div class="setting-title"><i class="fas fa-link"></i> 游戏链接</div>
+                <input type="text" value="${window.location.href}" readonly style="background: rgba(0,0,0,0.5);">
+                <button class="btn" onclick="copyGameLink()" style="margin-top: 10px;">
+                    <i class="fas fa-copy"></i> 复制链接
+                </button>
+            </div>
+            <div class="setting-group">
+                <div class="setting-title"><i class="fas fa-qrcode"></i> 二维码分享</div>
+                <div id="qrcode" style="text-align: center; padding: 10px; background: white; border-radius: 10px;">
+                    <div style="width: 150px; height: 150px; margin: 0 auto; background: #f0f0f0; display: flex; align-items: center; justify-content: center; color: #666;">
+                        <i class="fas fa-qrcode" style="font-size: 50px;"></i>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('multiplayerPanel').classList.add('show');
+    }
+    
+    function hideMultiplayerPanel() {
+        document.getElementById('multiplayerPanel').classList.remove('show');
+    }
+    
+    function copyGameLink() {
+        navigator.clipboard.writeText(window.location.href)
+            .then(() => {
+                alert("游戏链接已复制到剪贴板");
+            })
+            .catch(err => {
+                console.error("复制失败:", err);
+            });
+    }
+    
+    // 游戏说明书
+    function showManual() {
+        document.getElementById('manual').classList.add('show');
+    }
+    
+    function closeManual() {
+        document.getElementById('manual').classList.remove('show');
+    }
+    
+    // 加载游戏统计
+    function loadGameStats() {
+        const saved = localStorage.getItem('undercoverGameStats');
+        if (saved) {
+            state.gameStats = JSON.parse(saved);
+        }
+    }
+    
+    // 保存游戏统计
+    function saveGameStats() {
+        localStorage.setItem('undercoverGameStats', JSON.stringify(state.gameStats));
+    }
+    
+    // 初始化
+    loadGameStats();
+    
+    // 原有功能函数（略作修改以整合新功能）
+    function updatePlayerCount(value) {
+        document.getElementById('playerCountDisplay').textContent = value + ' 人';
+    }
+    
+    function toggleWordSource() {
+        const source = document.getElementById('wordSource').value;
+        const customSection = document.getElementById('customWordsSection');
+        customSection.style.display = source === 'custom' ? 'block' : 'none';
+    }
+    
+    function toggleAdvancedSettings() {
+        const advanced = document.getElementById('advancedSettings');
+        advanced.classList.toggle('expanded');
+    }
+    
+    // 难度设置变化监听
+    document.getElementById('difficulty').addEventListener('change', function() {
+        const customSection = document.getElementById('customDifficulty');
+        customSection.style.display = this.value === 'custom' ? 'block' : 'none';
+    });
+    
+    // 声音控制
+    document.getElementById('soundToggle').addEventListener('click', function() {
+        state.settings.soundEnabled = !state.settings.soundEnabled;
+        this.innerHTML = state.settings.soundEnabled ? 
+            '<i class="fas fa-volume-up"></i> 声音开' : 
+            '<i class="fas fa-volume-mute"></i> 声音关';
+        
+        if (!state.settings.soundEnabled) {
+            window.speechSynthesis.cancel();
+        }
+    });
+    
+    // 语音合成
+    function speak(txt) {
+        if (!state.settings.soundEnabled || !('speechSynthesis' in window)) return;
+        
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(txt);
+        utterance.lang = 'zh-CN';
+        utterance.rate = 1.0;
+        utterance.pitch = 1.0;
+        utterance.volume = 1.0;
+        
+        const voices = speechSynthesis.getVoices();
+        const chineseVoice = voices.find(voice => voice.lang.startsWith('zh'));
+        if (chineseVoice) {
+            utterance.voice = chineseVoice;
+        }
+        
+        window.speechSynthesis.speak(utterance);
+    }
+    
+    // 添加日志
+    function addLog(txt, type = 'info') {
+        const l = document.getElementById('log');
+        const time = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        const color = type === 'danger' ? 'var(--danger)' : 
+                     type === 'success' ? 'var(--success)' : 
+                     type === 'warning' ? 'var(--warning)' : 
+                     type === 'info' ? 'var(--info)' : 'var(--primary)';
+        
+        l.innerHTML = `<div style="border-left: 3px solid ${color}; padding-left: 10px;">
+                          <span style="color: #777">[${time}]</span> ${txt}
+                       </div>` + l.innerHTML;
+        
+        // 限制日志数量
+        const logs = l.querySelectorAll('div');
+        if (logs.length > 20) {
+            logs[logs.length - 1].remove();
+        }
+        
+        // 记录游戏动作
+        if (!state.isReplaying) {
+            recordGameAction('log', { text: txt, type: type });
+        }
+    }
+    
+    // 添加游戏历史记录
+    function addHistory(txt) {
+        const history = document.getElementById('historyContent');
+        const time = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        
+        history.innerHTML = `<div class="game-history-item">[${time}] ${txt}</div>` + history.innerHTML;
+        
+        // 限制历史记录数量
+        const items = history.querySelectorAll('.game-history-item');
+        if (items.length > 10) {
+            items[items.length - 1].remove();
+        }
+    }
+    
+    // 更新阶段指示器
+    function updatePhaseIndicator() {
+        const phaseEl = document.getElementById('phaseIndicator');
+        const phases = {
+            'setup': '游戏设置',
+            'viewing': '看牌阶段',
+            'describing': '描述阶段',
+            'voting': '投票阶段',
+            'lastwords': '遗言阶段',
+            'ended': '游戏结束',
+            'paused': '游戏暂停'
+        };
+        
+        phaseEl.textContent = `当前阶段: ${phases[state.gamePhase]} - 第${state.currentRound}轮`;
+        
+        // 根据阶段改变颜色
+        switch(state.gamePhase) {
+            case 'viewing':
+                phaseEl.style.background = 'rgba(108, 92, 231, 0.2)';
+                phaseEl.style.borderColor = 'var(--primary)';
+                break;
+            case 'describing':
+                phaseEl.style.background = 'rgba(253, 203, 110, 0.2)';
+                phaseEl.style.borderColor = 'var(--warning)';
+                break;
+            case 'voting':
+                phaseEl.style.background = 'rgba(255, 118, 117, 0.2)';
+                phaseEl.style.borderColor = 'var(--danger)';
+                break;
+            case 'lastwords':
+                phaseEl.style.background = 'rgba(253, 203, 110, 0.2)';
+                phaseEl.style.borderColor = 'var(--warning)';
+                break;
+            case 'paused':
+                phaseEl.style.background = 'rgba(149, 165, 166, 0.2)';
+                phaseEl.style.borderColor = '#95a5a6';
+                break;
+        }
+    }
+    
+    // 更新角色统计
+    function updateRoleStats() {
+        if (!state.settings.showRoleStats) return;
+        
+        const civilians = state.players.filter(p => p.alive && p.type === 'civilian').length;
+        const undercovers = state.players.filter(p => p.alive && p.type === 'undercover').length;
+        const blanks = state.players.filter(p => p.alive && p.type === 'blank').length;
+        
+        document.getElementById('civilianCount').textContent = civilians;
+        document.getElementById('undercoverCount').textContent = undercovers;
+        document.getElementById('blankCount').textContent = blanks;
+        
+        document.getElementById('refCivilianCount').textContent = civilians;
+        document.getElementById('refUndercoverCount').textContent = undercovers;
+        document.getElementById('refBlankCount').textContent = blanks;
+        
+        // 显示角色统计
+        document.getElementById('roleStats').style.display = 'flex';
+    }
+    
+    // 初始化游戏
+    function init() {
+        const num = +document.getElementById('pNum').value;
+        const difficulty = document.getElementById('difficulty').value;
+        
+        // 加载设置
+        state.settings.viewTime = +document.getElementById('viewTime').value;
+        state.settings.lastWordsTime = +document.getElementById('lastWordsTime').value;
+        state.settings.describeTime = +document.getElementById('describeTime').value;
+        state.settings.allowRevote = document.getElementById('allowRevote').checked;
+        state.settings.autoSkipDescribe = document.getElementById('autoSkipDescribe').checked;
+        state.settings.showRoleStats = document.getElementById('showRoleStats').checked;
+        state.settings.recordDescriptions = document.getElementById('recordDescriptions').checked;
+        state.settings.enableAI = document.getElementById('enableAI').checked;
+        
+        if (num < 4 || num > 12) {
+            alert("玩家人数必须在4-12之间");
+            return;
+        }
+        
+        // 选择词语对
+        let wordPairs = ENHANCED_DEFAULT_WORDS;
+        const wordSource = document.getElementById('wordSource').value;
+        
+        if (wordSource === 'custom') {
+            const customWords = document.getElementById('customWords').value;
+            if (customWords.trim()) {
+                const pairs = customWords.split('\n')
+                    .map(line => line.trim())
+                    .filter(line => line.includes(','))
+                    .map(line => line.split(',').map(w => w.trim()));
+                
+                if (pairs.length > 0) {
+                    wordPairs = pairs;
+                }
+            }
+        } else if (wordSource === 'ai') {
+            // AI生成词语对（简化版）
+            const categories = [
+                ['动物', '植物'],
+                ['食物', '饮料'],
+                ['职业', '工具'],
+                ['地点', '建筑'],
+                ['运动', '游戏'],
+                ['颜色', '形状']
+            ];
+            
+            const category = categories[Math.floor(Math.random() * categories.length)];
+            wordPairs = [[category[0] + 'A', category[1] + 'B']];
+        }
+        
+        const pair = wordPairs[Math.floor(Math.random() * wordPairs.length)];
+        state.words = pair;
+        
+        let roles = [];
+        
+        // 根据难度设置角色
+        if (difficulty === 'custom') {
+            const undercoverCount = +document.getElementById('customUndercover').value;
+            const blankCount = +document.getElementById('customBlank').value;
+            
+            for (let i = 0; i < undercoverCount; i++) {
+                roles.push({type: 'undercover', w: pair[1]});
+            }
+            
+            for (let i = 0; i < blankCount; i++) {
+                roles.push({type: 'blank', w: '白板'});
+            }
+        } else {
+            switch(difficulty) {
+                case 'easy':
+                    roles = [{type: 'undercover', w: pair[1]}];
+                    break;
+                case 'normal':
+                    roles = [{type: 'undercover', w: pair[1]}, {type: 'blank', w: '白板'}];
+                    break;
+                case 'hard':
+                    roles = [{type: 'undercover', w: pair[1]}, {type: 'undercover', w: pair[1]}];
+                    break;
+                case 'expert':
+                    roles = [{type: 'undercover', w: pair[1]}, {type: 'undercover', w: pair[1]}, {type: 'blank', w: '白板'}];
+                    break;
+            }
+        }
+        
+        // 填充平民
+        while(roles.length < num) {
+            roles.push({type: 'civilian', w: pair[0]});
+        }
+        
+        // 随机打乱角色
+        const randomness = document.getElementById('wordRandomness').value;
+        if (randomness === 'balanced') {
+            // 平衡分配：尽量平均分配身份
+            roles.sort(() => Math.random() - 0.5);
+        } else if (randomness === 'strategic') {
+            // 策略分配：卧底不连续
+            const shuffled = [...roles];
+            shuffled.sort(() => Math.random() - 0.5);
+            
+            // 确保卧底不连续
+            let lastWasUndercover = false;
+            for (let i = 0; i < shuffled.length; i++) {
+                if (shuffled[i].type === 'undercover') {
+                    if (lastWasUndercover) {
+                        // 找到下一个非卧底交换
+                        for (let j = i + 1; j < shuffled.length; j++) {
+                            if (shuffled[j].type !== 'undercover') {
+                                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+                                break;
+                            }
+                        }
+                    }
+                    lastWasUndercover = true;
+                } else {
+                    lastWasUndercover = false;
+                }
+            }
+            roles = shuffled;
+        } else {
+            // 完全随机
+            for (let i = roles.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [roles[i], roles[j]] = [roles[j], roles[i]];
+            }
+        }
+        
+        state.players = roles.map((r, i) => ({ 
+            id: i + 1, 
+            ...r, 
+            alive: true, 
+            viewed: false 
+        }));
+        
+        state.viewCount = 0;
+        state.viewing = false;
+        state.chances = Math.ceil(num / 2);
+        state.gamePhase = 'viewing';
+        state.currentRound = 1;
+        state.currentDescriber = 1;
+        state.descriptionComplete = false;
+        state.descriptions = [];
+        state.gameActions = []; // 重置游戏动作记录
+        
+        // 更新裁判信息显示
+        document.getElementById('civilianWord').textContent = pair[0];
+        document.getElementById('undercoverWord').textContent = pair[1];
+        document.getElementById('blankWord').textContent = '白板';
+        
+        // 更新角色统计
+        updateRoleStats();
+        
+        render();
+        updateStats();
+        updatePhaseIndicator();
+        
+        document.getElementById('setup').style.display = 'none';
+        document.getElementById('gameUI').style.display = 'block';
+        
+        if (state.settings.recordDescriptions) {
+            document.getElementById('descriptionHistory').style.display = 'block';
+            document.getElementById('descriptionInput').style.display = 'block';
+        }
+        
+        // 记录词语流行度
+        calculateWordPopularity();
+        
+        // 记录游戏开始
+        recordGameAction('game_start', { 
+            players: num, 
+            difficulty: difficulty,
+            words: pair 
+        });
+        
+        speak(`游戏开始，共${num}位玩家，请依次点击卡片确认身份词。`);
+        
+        addLog(`游戏初始化完成 - ${num}位玩家，难度: ${difficulty}`, 'success');
+        addLog(`所有玩家身份已分配，请依次查看`, 'info');
+        addHistory(`新游戏开始 - ${num}位玩家`);
+    }
+    
+    // 渲染玩家卡片
+    function render() {
+        const g = document.getElementById('grid');
+        g.innerHTML = state.players.map(p => {
+            let backClass = p.type;
+            let roleText = p.type === 'civilian' ? '平民' : 
+                          p.type === 'undercover' ? '卧底' : '白板';
+            
+            // 高亮当前描述者
+            const isCurrentDescriber = state.gamePhase === 'describing' && 
+                                     state.currentDescriber === p.id && 
+                                     p.alive;
+            
+            // 如果是回放模式，添加特殊样式
+            const isReplayMode = state.isReplaying ? 'replay-mode' : '';
+            
+            return `
+            <div class="card ${p.viewed ? 'viewed' : ''} ${!p.alive ? 'out' : ''} ${isReplayMode}" 
+                 id="c-${p.id}" 
+                 onclick="flip(${p.id})"
+                 style="${isCurrentDescriber ? 'box-shadow: 0 0 20px var(--warning);' : ''}">
+                <div class="card-inner">
+                    <div class="front">${p.id}</div>
+                    <div class="back ${backClass}">
+                        <small>${roleText}</small>
+                        <h3>${p.w}</h3>
+                        ${p.type === 'blank' ? '<p style="font-size:12px; margin-top:5px;">(无词语)</p>' : ''}
+                    </div>
+                </div>
+            </div>
+            `;
+        }).join('');
+    }
+    
+    // 更新统计数据
+    function updateStats() {
+        const alive = state.players.filter(p => p.alive).length;
+        const viewed = state.players.filter(p => p.viewed).length;
+        
+        document.getElementById('aliveCount').textContent = alive;
+        document.getElementById('viewedCount').textContent = viewed;
+        document.getElementById('hearts').textContent = state.chances;
+        
+        // 更新投票输入的最大值
+        document.getElementById('voteId').max = state.players.length;
+    }
+    
+    // 翻转卡片（查看身份）
+    function flip(id) {
+        if (state.viewing || state.gamePhase !== 'viewing' || state.isReplaying) return;
+        
+        const p = state.players.find(x => x.id === id);
+        if (!p.alive || p.viewed) {
+            speak("该玩家已确认身份或已出局");
+            return;
+        }
+        
+        const card = document.getElementById(`c-${id}`);
+        card.classList.add('flipped');
+        state.viewing = true;
+        state.currentViewer = id;
+        
+        soundManager.playSound('flip');
+        
+        // 锁定其他卡片
+        document.querySelectorAll('.card').forEach(c => {
+            if(c.id !== `c-${id}`) c.classList.add('locked');
+        });
+        
+        // 显示计时器
+        const timerEl = document.getElementById('timer');
+        const timeLeftEl = document.getElementById('timeLeft');
+        timerEl.style.display = 'block';
+        
+        let timeLeft = state.settings.viewTime;
+        timeLeftEl.textContent = timeLeft;
+        
+        speak(`请${id}号玩家确认身份，${timeLeft}秒后关闭。`);
+        addLog(`${id}号玩家正在查看身份`, 'info');
+        
+        // 记录游戏动作
+        recordGameAction('view_card', { playerId: id, role: p.type });
+        
+        // 倒计时
+        const countdown = setInterval(() => {
+            timeLeft--;
+            timeLeftEl.textContent = timeLeft;
+            
+            if (timeLeft <= 0) {
+                clearInterval(countdown);
+                
+                card.classList.remove('flipped');
+                card.classList.add('viewed');
+                state.viewing = false;
+                p.viewed = true;
+                state.viewCount++;
+                
+                // 解除锁定
+                document.querySelectorAll('.card').forEach(c => c.classList.remove('locked'));
+                timerEl.style.display = 'none';
+                
+                addLog(`${id}号玩家确认身份完成`, 'success');
+                updateStats();
+                updateRoleStats();
+                
+                // 如果所有人看完了，进入描述阶段
+                if (state.viewCount >= state.players.length) {
+                    // 所有玩家看完牌，进入描述阶段
+                    state.gamePhase = 'describing';
+                    updatePhaseIndicator();
+                    document.getElementById('startDescribeBtn').style.display = 'block';
+                    document.getElementById('guideText').innerText = "全员身份确认完成，请点击按钮开始描述环节";
+                    speak("全员身份确认完成，准备进入描述环节。");
+                    addLog("进入描述准备阶段", 'warning');
+                    
+                    // 记录阶段转换
+                    recordGameAction('phase_change', { from: 'viewing', to: 'describing' });
+                    
+                    // 如果启用自动跳过描述，自动开始
+                    if (state.settings.autoSkipDescribe) {
+                        setTimeout(() => {
+                            startDescribeRound();
+                        }, 1000);
+                    }
+                } else {
+                    speak(`请下一位玩家查看身份`);
+                }
+                
+                state.currentViewer = null;
+            }
+        }, 1000);
+    }
+    
+    // 开始描述环节
+    function startDescribeRound() {
+        if (state.isReplaying) return;
+        
+        state.gamePhase = 'describing';
+        updatePhaseIndicator();
+        
+        // 找到第一个存活的玩家作为描述开始者
+        const firstAlive = state.players.find(p => p.alive);
+        if (firstAlive) {
+            state.currentDescriber = firstAlive.id;
+        }
+        
+        // 隐藏开始描述按钮，显示投票区域
+        document.getElementById('startDescribeBtn').style.display = 'none';
+        document.getElementById('voteSection').style.display = 'block';
+        document.getElementById('guideText').innerText = `第${state.currentRound}轮描述开始`;
+        
+        // 清除之前的描述输入
+        document.getElementById('descriptionText').value = '';
+        
+        // 更新描述提示
+        updateDescribePrompt();
+        
+        // 启动描述计时器
+        startDescribeTimer();
+        
+        // 记录回合开始
+        recordGameAction('round_start', { round: state.currentRound });
+        
+        speak(`第${state.currentRound}轮描述开始，请${state.currentDescriber}号玩家发言。`);
+        addLog(`第${state.currentRound}轮描述开始`, 'info');
+        
+        render(); // 重新渲染以高亮当前描述者
+    }
+    
+    // 启动描述计时器
+    function startDescribeTimer() {
+        const timerEl = document.getElementById('describeTimer');
+        const timeLeftEl = document.getElementById('describeTimeLeft');
+        timerEl.style.display = 'block';
+        
+        let timeLeft = state.settings.describeTime;
+        timeLeftEl.textContent = timeLeft;
+        timeLeftEl.style.color = 'var(--warning)'; // 重置颜色
+        
+        const countdown = setInterval(() => {
+            timeLeft--;
+            timeLeftEl.textContent = timeLeft;
+            
+            if (timeLeft <= 10 && timeLeft > 0) {
+                // 最后10秒提示
+                timeLeftEl.style.color = 'var(--danger)';
+            }
+            
+            if (timeLeft <= 0) {
+                clearInterval(countdown);
+                timerEl.style.display = 'none';
+                
+                // 自动跳过描述
+                if (state.currentDescriber === state.players.find(p => p.alive && p.id === state.currentDescriber)?.id) {
+                    skipDescribe();
+                }
+            }
+        }, 1000);
+    }
+    
+    // 更新描述提示
+    function updateDescribePrompt() {
+        const alivePlayers = state.players.filter(p => p.alive);
+        const currentIndex = alivePlayers.findIndex(p => p.id === state.currentDescriber);
+        const totalAlive = alivePlayers.length;
+        
+        document.getElementById('describePrompt').innerText = 
+            `请 ${state.currentDescriber} 号玩家描述你的词语 (${currentIndex + 1}/${totalAlive})`;
+    }
+    
+    // 提交描述
+    function submitDescription() {
+        if (state.isReplaying) return;
+        
+        const text = document.getElementById('descriptionText').value.trim();
+        const player = state.players.find(p => p.id === state.currentDescriber);
+        
+        if (player) {
+            // 记录描述
+            state.descriptions.push({
+                round: state.currentRound,
+                playerId: state.currentDescriber,
+                text: text || '(无描述)',
+                role: player.type
+            });
+            
+            // 添加到描述记录
+            if (state.settings.recordDescriptions) {
+                const descList = document.getElementById('descriptionList');
+                const roleColor = player.type === 'civilian' ? 'var(--success)' : 
+                                player.type === 'undercover' ? 'var(--danger)' : 'var(--primary)';
+                
+                descList.innerHTML = `<div class="description-item" style="border-left: 3px solid ${roleColor}; padding-left: 5px;">
+                    <strong>第${state.currentRound}轮</strong> ${state.currentDescriber}号: ${text || '(无描述)'}
+                </div>` + descList.innerHTML;
+            }
+            
+            // 记录游戏动作
+            recordGameAction('describe', { 
+                playerId: state.currentDescriber, 
+                text: text || '(无描述)',
+                role: player.type 
+            });
+            
+            addLog(`${state.currentDescriber}号描述: ${text || '(无描述)'}`, 'info');
+            speak("描述已提交");
+            
+            // 清空输入框
+            document.getElementById('descriptionText').value = '';
+            
+            // 自动跳到下一个玩家
+            skipDescribe();
+        }
+    }
+    
+    // 自动描述
+    function autoDescribe() {
+        if (state.isReplaying) return;
+        
+        const player = state.players.find(p => p.id === state.currentDescriber);
+        if (!player) return;
+        
+        // 使用智能AI生成描述
+        const description = generateSmartDescription(player.w, player.type);
+        document.getElementById('descriptionText').value = description;
+        
+        // 自动提交
+        setTimeout(() => {
+            submitDescription();
+        }, 1000);
+    }
+    
+    // 跳过描述
+    function skipDescribe() {
+        if (state.gamePhase !== 'describing' || state.isReplaying) return;
+        
+        addLog(`${state.currentDescriber}号玩家完成描述`, 'info');
+        speak(`${state.currentDescriber}号玩家描述完成`);
+        
+        // 记录描述完成
+        recordGameAction('describe_complete', { playerId: state.currentDescriber });
+        
+        // 找到下一个存活的玩家
+        const alivePlayers = state.players.filter(p => p.alive);
+        const currentIndex = alivePlayers.findIndex(p => p.id === state.currentDescriber);
+        
+        // 如果还有下一个玩家，继续描述
+        if (currentIndex < alivePlayers.length - 1) {
+            state.currentDescriber = alivePlayers[currentIndex + 1].id;
+            updateDescribePrompt();
+            
+            // 重新开始计时器
+            const timerEl = document.getElementById('describeTimer');
+            if (timerEl.style.display === 'block') {
+                startDescribeTimer();
+            }
+            
+            speak(`请${state.currentDescriber}号玩家发言`);
+            
+            // 重新渲染以高亮新的描述者
+            render();
+        } else {
+            // 所有玩家描述完成，进入投票阶段
+            state.descriptionComplete = true;
+            document.getElementById('describeTimer').style.display = 'none';
+            document.getElementById('guideText').innerText = "所有玩家描述完成，请开始投票";
+            document.getElementById('describePrompt').innerText = "描述环节结束，请投票选出怀疑的卧底";
+            
+            // 记录描述环节结束
+            recordGameAction('describe_round_end', { round: state.currentRound });
+            
+            speak("所有玩家描述完成，请开始投票");
+            addLog("描述环节结束，进入投票阶段", 'warning');
+        }
+    }
+    
+    // 投票
+    function vote() {
+        if (state.isReplaying) return;
+        
+        if (state.gamePhase === 'describing' && !state.descriptionComplete) {
+            alert("请先完成描述环节或点击'跳过描述'");
+            return;
+        }
+        
+        const id = +document.getElementById('voteId').value;
+        const p = state.players.find(x => x.id === id && x.alive);
+        
+        if (!p) {
+            alert("请输入有效的存活玩家编号");
+            soundManager.playSound('danger');
+            return;
+        }
+        
+        // 进入投票阶段
+        state.gamePhase = 'voting';
+        updatePhaseIndicator();
+        
+        state.chances--;
+        p.alive = false;
+        
+        const card = document.getElementById(`c-${id}`);
+        card.classList.add('out');
+        
+        const roleName = p.type === 'civilian' ? '平民' : 
+                        p.type === 'undercover' ? '卧底' : '白板';
+        
+        // 记录投票
+        recordGameAction('vote', { 
+            voted: id, 
+            role: p.type,
+            round: state.currentRound,
+            remainingChances: state.chances
+        });
+        
+        speak(`投票结束，${id}号玩家的身份是${roleName}。`);
+        addLog(`${id}号玩家被投票出局，身份：${roleName}`, 'danger');
+        addHistory(`第${state.currentRound}轮: ${id}号被投出 (${roleName})`);
+        
+        if (p.type === 'undercover') {
+            soundManager.playSound('success');
+            card.classList.add('victory');
+        } else {
+            soundManager.playSound('danger');
+            card.classList.add('defeat');
+        }
+        
+        document.getElementById('voteId').value = '';
+        updateStats();
+        updateRoleStats();
+        
+        // 进入遗言阶段
+        startLastWords(id);
+    }
+    
+    // 开始遗言阶段
+    function startLastWords(playerId) {
+        state.gamePhase = 'lastwords';
+        updatePhaseIndicator();
+        
+        // 显示遗言区域
+        const lastWordsEl = document.getElementById('lastWords');
+        const lastWordsPlayerEl = document.getElementById('lastWordsPlayer');
+        const lastWordsCountdownEl = document.getElementById('lastWordsCountdown');
+        
+        lastWordsPlayerEl.textContent = playerId;
+        lastWordsCountdownEl.textContent = state.settings.lastWordsTime;
+        lastWordsEl.classList.add('active');
+        
+        // 禁用投票区域
+        document.getElementById('voteBtn').disabled = true;
+        document.getElementById('voteId').disabled = true;
+        document.getElementById('skipDescribeBtn').disabled = true;
+        
+        // 记录遗言开始
+        recordGameAction('last_words_start', { playerId: playerId });
+        
+        // 语音提示遗言开始
+        speak(`${playerId}号玩家请发表遗言，你有${state.settings.lastWordsTime}秒时间。`);
+        addLog(`${playerId}号玩家进入遗言阶段`, 'warning');
+        
+        let countdown = state.settings.lastWordsTime;
+        state.lastWordsTimer = setInterval(() => {
+            countdown--;
+            lastWordsCountdownEl.textContent = countdown;
+            
+            if (countdown <= 0) {
+                clearInterval(state.lastWordsTimer);
+                endLastWords();
+            }
+        }, 1000);
+    }
+    
+    // 结束遗言阶段
+    function endLastWords() {
+        const lastWordsEl = document.getElementById('lastWords');
+        lastWordsEl.classList.remove('active');
+        
+        // 启用投票区域（下一轮使用）
+        document.getElementById('voteBtn').disabled = false;
+        document.getElementById('voteId').disabled = false;
+        document.getElementById('skipDescribeBtn').disabled = false;
+        
+        // 移除卡片的胜利/失败动画
+        document.querySelectorAll('.card').forEach(card => {
+            card.classList.remove('victory', 'defeat');
+        });
+        
+        // 记录遗言结束
+        recordGameAction('last_words_end', {});
+        
+        addLog(`遗言阶段结束`, 'info');
+        speak(`遗言时间结束，游戏继续。`);
+        
+        // 检查游戏是否结束
+        setTimeout(checkGameEnd, 500);
+    }
+    
+    // 检查游戏是否结束
+    function checkGameEnd() {
+        const alivePlayers = state.players.filter(p => p.alive);
+        const undercoverAlive = alivePlayers.filter(p => p.type === 'undercover').length;
+        const civilianAlive = alivePlayers.filter(p => p.type === 'civilian').length;
+        const blankAlive = alivePlayers.filter(p => p.type === 'blank').length;
+        
+        // 记录游戏状态检查
+        recordGameAction('check_game_end', {
+            alivePlayers: alivePlayers.length,
+            undercoverAlive: undercoverAlive,
+            civilianAlive: civilianAlive,
+            blankAlive: blankAlive
+        });
+        
+        if (undercoverAlive === 0) {
+            // 卧底全部出局，平民胜利
+            state.gameStats.civilianWins++;
+            state.gameStats.totalGames++;
+            state.gameStats.averageRounds = ((state.gameStats.averageRounds * (state.gameStats.totalGames - 1)) + state.currentRound) / state.gameStats.totalGames;
+            saveGameStats();
+            
+            // 记录游戏结束
+            recordGameAction('game_end', { winner: 'civilian', rounds: state.currentRound });
+            
+            endGame('civilian');
+        } else if (undercoverAlive >= civilianAlive) {
+            // 卧底人数不少于平民，卧底胜利
+            state.gameStats.undercoverWins++;
+            state.gameStats.totalGames++;
+            state.gameStats.averageRounds = ((state.gameStats.averageRounds * (state.gameStats.totalGames - 1)) + state.currentRound) / state.gameStats.totalGames;
+            saveGameStats();
+            
+            // 记录游戏结束
+            recordGameAction('game_end', { winner: 'undercover', rounds: state.currentRound });
+            
+            endGame('undercover');
+        } else if (state.chances <= 0) {
+            // 投票机会耗尽
+            state.gameStats.undercoverWins++;
+            state.gameStats.totalGames++;
+            state.gameStats.averageRounds = ((state.gameStats.averageRounds * (state.gameStats.totalGames - 1)) + state.currentRound) / state.gameStats.totalGames;
+            saveGameStats();
+            
+            // 记录游戏结束
+            recordGameAction('game_end', { winner: 'undercover', reason: 'no_chances', rounds: state.currentRound });
+            
+            endGame('undercover');
+        } else if (alivePlayers.length <= 2) {
+            // 只剩2人，卧底胜利
+            state.gameStats.undercoverWins++;
+            state.gameStats.totalGames++;
+            state.gameStats.averageRounds = ((state.gameStats.averageRounds * (state.gameStats.totalGames - 1)) + state.currentRound) / state.gameStats.totalGames;
+            saveGameStats();
+            
+            // 记录游戏结束
+            recordGameAction('game_end', { winner: 'undercover', reason: 'only_two_left', rounds: state.currentRound });
+            
+            endGame('undercover');
+        } else {
+            // 游戏继续，进入下一轮描述
+            continueToNextRound();
+        }
+    }
+    
+    // 继续下一轮
+    function continueToNextRound() {
+        state.currentRound++;
+        state.gamePhase = 'describing';
+        state.descriptionComplete = false;
+        
+        // 重置描述者
+        const firstAlive = state.players.find(p => p.alive);
+        if (firstAlive) {
+            state.currentDescriber = firstAlive.id;
+        }
+        
+        updatePhaseIndicator();
+        
+        // 重置UI
+        document.getElementById('voteSection').style.display = 'none';
+        document.getElementById('startDescribeBtn').style.display = 'block';
+        document.getElementById('guideText').innerText = `第${state.currentRound}轮描述准备开始`;
+        
+        const aliveCount = state.players.filter(p => p.alive).length;
+        const remaining = state.players.filter(p => p.alive && p.type === 'undercover').length;
+        
+        // 记录新一轮开始
+        recordGameAction('new_round', { 
+            round: state.currentRound, 
+            aliveCount: aliveCount,
+            undercoverRemaining: remaining
+        });
+        
+        speak(`游戏继续，场上还有${remaining}个卧底，${aliveCount}位玩家存活，开始第${state.currentRound}轮描述。`);
+        addLog(`开始第${state.currentRound}轮，剩余${remaining}卧底，${state.chances}次投票机会`, 'warning');
+        
+        // 如果启用自动跳过描述，自动开始
+        if (state.settings.autoSkipDescribe) {
+            setTimeout(() => {
+                startDescribeRound();
+            }, 1000);
+        }
+        
+        render();
+    }
+    
+    // 暂停游戏
+    function pauseGame() {
+        if (state.gamePhase === 'setup' || state.gamePhase === 'ended' || state.isReplaying) return;
+        
+        const wasPaused = state.gamePhase === 'paused';
+        
+        if (!wasPaused) {
+            state.previousPhase = state.gamePhase;
+            state.gamePhase = 'paused';
+            
+            // 停止所有计时器
+            if (state.lastWordsTimer) {
+                clearInterval(state.lastWordsTimer);
+            }
+            
+            document.getElementById('guideText').innerText = "游戏已暂停";
+            speak("游戏已暂停");
+            addLog("游戏暂停", 'warning');
+            
+            // 记录游戏暂停
+            recordGameAction('game_paused', {});
+        } else {
+            state.gamePhase = state.previousPhase;
+            document.getElementById('guideText').innerText = "游戏已恢复";
+            speak("游戏继续");
+            addLog("游戏继续", 'info');
+            
+            // 记录游戏恢复
+            recordGameAction('game_resumed', {});
+            
+            // 如果是遗言阶段，重新开始计时
+            if (state.gamePhase === 'lastwords') {
+                startLastWords(state.lastWordsPlayer);
+            }
+        }
+        
+        updatePhaseIndicator();
+    }
+    
+    // 结束游戏
+    function endGame(winner) {
+        state.gamePhase = 'ended';
+        updatePhaseIndicator();
+        
+        // 显示所有身份
+        state.players.forEach(p => {
+            const card = document.getElementById(`c-${p.id}`);
+            if (!card.classList.contains('flipped')) {
+                card.classList.add('flipped');
+            }
+        });
+        
+        // 隐藏投票区域
+        document.getElementById('voteSection').style.display = 'none';
+        document.getElementById('startDescribeBtn').style.display = 'none';
+        document.getElementById('describeTimer').style.display = 'none';
+        
+        const winnerText = winner === 'civilian' ? '平民' : '卧底';
+        document.getElementById('guideText').innerText = `游戏结束 - ${winnerText}胜利！`;
+        
+        // 游戏结束时显示词语
+        addLog(`游戏结束！${winnerText}胜利！`, winner === 'civilian' ? 'success' : 'danger');
+        addLog(`本局词语：平民词 "${state.words[0]}"，卧底词 "${state.words[1]}"`, 'info');
+        addLog(`游戏回合：${state.currentRound}轮`, 'info');
+        addHistory(`游戏结束: ${winnerText}胜利 (${state.currentRound}轮)`);
+        
+        speak(`游戏结束！${winnerText}胜利！`);
+        
+        // 3秒后显示重新开始提示
+        setTimeout(() => {
+            if (confirm(`游戏结束！${winnerText}胜利！\n\n本局词语：\n平民词：${state.words[0]}\n卧底词：${state.words[1]}\n\n总回合数：${state.currentRound}\n\n是否开始新游戏？`)) {
+                location.reload();
+            }
+        }, 3000);
+    }
+    
+    // 显示游戏统计
+    function showGameStats() {
+        const stats = state.gameStats;
+        const winRateCiv = stats.totalGames > 0 ? ((stats.civilianWins / stats.totalGames) * 100).toFixed(1) : 0;
+        const winRateUnd = stats.totalGames > 0 ? ((stats.undercoverWins / stats.totalGames) * 100).toFixed(1) : 0;
+        
+        const statsHTML = `
+            <div style="margin-bottom: 15px;">
+                <h3><i class="fas fa-chart-pie"></i> 游戏统计概览</h3>
+                <div class="stats">
+                    <div class="stat-item">
+                        <div class="stat-value">${stats.totalGames}</div>
+                        <div class="stat-label">总游戏次数</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" style="color: var(--success)">${stats.civilianWins}</div>
+                        <div class="stat-label">平民胜利</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" style="color: var(--danger)">${stats.undercoverWins}</div>
+                        <div class="stat-label">卧底胜利</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div style="margin-bottom: 15px;">
+                <h4>胜率统计</h4>
+                <div style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 10px;">
+                    <div style="margin-bottom: 10px;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                            <span>平民胜率:</span>
+                            <span>${winRateCiv}%</span>
+                        </div>
+                        <div style="height: 10px; background: rgba(255,255,255,0.1); border-radius: 5px; overflow: hidden;">
+                            <div style="height: 100%; width: ${winRateCiv}%; background: var(--success);"></div>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                            <span>卧底胜率:</span>
+                            <span>${winRateUnd}%</span>
+                        </div>
+                        <div style="height: 10px; background: rgba(255,255,255,0.1); border-radius: 5px; overflow: hidden;">
+                            <div style="height: 100%; width: ${winRateUnd}%; background: var(--danger);"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div>
+                <h4>其他统计</h4>
+                <div style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 10px;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                        <span>平均回合数:</span>
+                        <span>${stats.averageRounds.toFixed(1)}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <span>游戏历史记录:</span>
+                        <span>${stats.history.length}</span>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // 创建自定义弹窗
+        const modal = document.createElement('div');
+        modal.style.position = 'fixed';
+        modal.style.top = '0';
+        modal.style.left = '0';
+        modal.style.width = '100%';
+        modal.style.height = '100%';
+        modal.style.backgroundColor = 'rgba(0,0,0,0.8)';
+        modal.style.display = 'flex';
+        modal.style.justifyContent = 'center';
+        modal.style.alignItems = 'center';
+        modal.style.zIndex = '2000';
+        modal.style.backdropFilter = 'blur(10px)';
+        
+        modal.innerHTML = `
+            <div style="background: rgba(255,255,255,0.1); padding: 30px; border-radius: 20px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto; border: 1px solid rgba(255,255,255,0.2);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2 style="margin: 0; color: var(--primary);"><i class="fas fa-chart-pie"></i> 游戏统计</h2>
+                    <button onclick="this.parentElement.parentElement.parentElement.remove()" style="background: var(--danger); color: white; border: none; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 20px;">×</button>
+                </div>
+                ${statsHTML}
+                <div style="margin-top: 20px; text-align: center;">
+                    <button onclick="showDetailedStats(); this.parentElement.parentElement.parentElement.remove()" class="btn" style="background: var(--info); width: 200px;">
+                        <i class="fas fa-chart-line"></i> 查看详细数据
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        // 点击蒙层关闭
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) {
+                document.body.removeChild(modal);
+            }
+        });
+    }
+    
+    // 初始化语音
+    if ('speechSynthesis' in window) {
+        speechSynthesis.getVoices(); // 初始化语音列表
+    }
+    
+    // 添加键盘快捷键
+    document.addEventListener('keydown', (e) => {
+        // 防止在输入框中触发快捷键
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+            return;
+        }
+        
+        if (e.key === 'Enter' && state.gamePhase === 'describing' && state.descriptionComplete) {
+            vote();
+        }
+        
+        if (e.key === ' ' && state.gamePhase === 'describing') {
+            e.preventDefault();
+            skipDescribe();
+        }
+        
+        if (e.key === 'r' || e.key === 'R') {
+            if (e.ctrlKey) {
+                e.preventDefault();
+                if (confirm("确定要重新开始游戏吗？")) {
+                    location.reload();
+                }
+            }
+        }
+        
+        if (e.key === ' ' && state.gamePhase === 'viewing' && state.currentViewer) {
+            e.preventDefault();
+            // 空格键快速跳过看牌
+            const event = new Event('click');
+            document.getElementById(`c-${state.currentViewer}`).dispatchEvent(event);
+        }
+        
+        // F9键显示/隐藏裁判信息
+        if (e.key === 'F9') {
+            e.preventDefault();
+            const refereeInfo = document.getElementById('refereeInfo');
+            refereeInfo.classList.toggle('show');
+        }
+        
+        // F10键显示/隐藏游戏历史
+        if (e.key === 'F10') {
+            e.preventDefault();
+            const gameHistory = document.getElementById('gameHistory');
+            gameHistory.classList.toggle('show');
+        }
+        
+        // F11键显示/隐藏详细统计
+        if (e.key === 'F11') {
+            e.preventDefault();
+            showDetailedStats();
+        }
+        
+        // F12键显示/隐藏回放控制
+        if (e.key === 'F12') {
+            e.preventDefault();
+            const replayControls = document.getElementById('replayControls');
+            replayControls.classList.toggle('show');
+        }
+        
+        // 空格键跳过遗言
+        if (e.key === ' ' && state.gamePhase === 'lastwords') {
+            e.preventDefault();
+            if (state.lastWordsTimer) {
+                clearInterval(state.lastWordsTimer);
+                endLastWords();
+            }
+        }
+        
+        // ESC键暂停游戏
+        if (e.key === 'Escape') {
+            e.preventDefault();
+            pauseGame();
+        }
+        
+        // Ctrl+S保存游戏
+        if (e.key === 's' || e.key === 'S') {
+            if (e.ctrlKey) {
+                e.preventDefault();
+                saveGameState();
+            }
+        }
+        
+        // Ctrl+L加载游戏
+        if (e.key === 'l' || e.key === 'L') {
+            if (e.ctrlKey) {
+                e.preventDefault();
+                loadGameState();
+            }
+        }
+        
+        // Ctrl+M显示说明书
+        if (e.key === 'm' || e.key === 'M') {
+            if (e.ctrlKey) {
+                e.preventDefault();
+                showManual();
+            }
+        }
+    });
+    
+    // 防抖函数优化
+    function debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    }
+    
+    // 节流函数优化
+    function throttle(func, limit) {
+        let inThrottle;
+        return function(...args) {
+            if (!inThrottle) {
+                func.apply(this, args);
+                inThrottle = true;
+                setTimeout(() => inThrottle = false, limit);
+            }
+        };
+    }
+    
+    // 优化窗口大小调整
+    const optimizedRender = throttle(render, 100);
+    window.addEventListener('resize', optimizedRender);
+    
+    // 初始渲染
+    render();
+</script>
+
+<!-- PWA Service Worker 注册 -->
+<script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            // 简化版Service Worker注册
+            navigator.serviceWorker.register('/sw.js').catch(error => {
+                console.log('Service Worker 注册失败:', error);
+            });
+        });
+    }
+    
+    // 添加到主屏幕提示
+    window.addEventListener('beforeinstallprompt', (e) => {
+        // 阻止默认提示
+        e.preventDefault();
+        
+        // 可以在这里保存事件，稍后触发
+        const deferredPrompt = e;
+        
+        // 显示自定义的安装提示
+        setTimeout(() => {
+            if (confirm('是否将"谁是卧底"添加到主屏幕以获得更好的体验？')) {
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then((choiceResult) => {
+                    if (choiceResult.outcome === 'accepted') {
+                        console.log('用户接受了安装提示');
+                    }
+                    deferredPrompt = null;
+                });
+            }
+        }, 30000); // 30秒后提示
+    });
+</script>
+
+</body>
+</html>
